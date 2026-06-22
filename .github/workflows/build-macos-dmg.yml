@@ -2,6 +2,9 @@ name: Build macOS DMG
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - "mac-v*"
 
 jobs:
   build-macos:
@@ -35,7 +38,17 @@ jobs:
         run: npm ci
 
       - name: Build DMG
+        env:
+          APPLE_SIGNING_IDENTITY: "-"
         run: npm run tauri -- build --target ${{ matrix.target }} --bundles dmg
+
+      - name: Verify app signature
+        shell: bash
+        run: |
+          APP_PATHS=(src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app)
+          test -d "${APP_PATHS[0]}"
+          codesign --verify --deep --strict --verbose=2 "${APP_PATHS[0]}"
+          codesign --display --verbose=2 "${APP_PATHS[0]}"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
