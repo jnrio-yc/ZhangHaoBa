@@ -61,7 +61,8 @@ API Key 躺在微信文件里、测试环境账号记在备忘录、卡密存在
 
 ## 🖼 界面一览
 
-> ![Uploading image.png…]() ![Uploading image.png…]() ![Uploading image.png…]() ![Uploading image.png…]()
+> ![全部记录](docs/records.png)
+![记录详情](docs/detail.png)
 
 
 
