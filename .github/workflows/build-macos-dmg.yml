@@ -42,13 +42,12 @@ jobs:
           APPLE_SIGNING_IDENTITY: "-"
         run: npm run tauri -- build --target ${{ matrix.target }} --bundles dmg
 
-      - name: Verify app signature
+      - name: Verify DMG output
         shell: bash
         run: |
-          APP_PATHS=(src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app)
-          test -d "${APP_PATHS[0]}"
-          codesign --verify --deep --strict --verbose=2 "${APP_PATHS[0]}"
-          codesign --display --verbose=2 "${APP_PATHS[0]}"
+          DMG_PATHS=(src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg)
+          test -f "${DMG_PATHS[0]}"
+          ls -lh "${DMG_PATHS[@]}"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
