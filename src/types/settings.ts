@@ -9,6 +9,7 @@ export interface AppSettings {
   clearClipboardAfterCopy: boolean;
   clipboardClearSeconds: number;
   autoBackupEnabled: boolean;
+  autoBackupTime?: string;
   backupPath?: string;
   backupRetentionCount: number;
   defaultExportFormat: 'excel' | 'csv';

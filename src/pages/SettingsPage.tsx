@@ -1,25 +1,9 @@
 import { useState, useEffect } from 'react';
 import { clsx } from 'clsx';
 import { useToast } from '@/components/common/Toast';
-import type { AppSettings } from '@/types/settings';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { PROTECTION_INFO } from '@/constants/protection';
-
-const DEFAULT_SETTINGS: AppSettings = {
-  defaultPage: '/records',
-  defaultSort: 'updatedAt_desc',
-  theme: 'light',
-  language: 'zh-CN',
-  strictModeEnabled: false,
-  hideSensitiveByDefault: true,
-  warnBeforeCopyHighRisk: true,
-  clearClipboardAfterCopy: true,
-  clipboardClearSeconds: 30,
-  autoBackupEnabled: false,
-  backupPath: '',
-  backupRetentionCount: 10,
-  defaultExportFormat: 'excel',
-  includeSensitiveInExportByDefault: false,
-};
+import { isTauri } from '@/services/mockData';
 
 type SectionKey = 'general' | 'security' | 'clipboard' | 'backup' | 'export' | 'data' | 'about';
 
@@ -33,12 +17,22 @@ const SECTIONS: { key: SectionKey; label: string }[] = [
   { key: 'about', label: '关于' },
 ];
 
+const BACKUP_TIME_OPTIONS = [
+  { value: '启动时', label: '启动时' },
+  { value: '每天 00:00', label: '每天 00:00' },
+  { value: '每天 06:00', label: '每天 06:00' },
+  { value: '每天 12:00', label: '每天 12:00' },
+  { value: '每天 18:00', label: '每天 18:00' },
+  { value: '每周一', label: '每周一' },
+  { value: '每月1号', label: '每月1号' },
+];
+
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       onClick={() => onChange(!checked)}
       className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0"
-      style={{ background: checked ? '#10213B' : '#DED6C9' }}
+      style={{ background: checked ? 'var(--color-toggle-on)' : 'var(--color-toggle-off)' }}
     >
       <span
         className="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
@@ -50,23 +44,73 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const store = useSettingsStore();
   const [activeSection, setActiveSection] = useState<SectionKey>('general');
   const [dirty, setDirty] = useState(false);
 
-  useEffect(() => {
-    // settingsService.getAll().then(res => { if (res.success) setSettings(res.data); })
-  }, []);
+  // Local editable copy of settings
+  const [local, setLocal] = useState({
+    defaultPage: store.defaultPage,
+    defaultSort: store.defaultSort,
+    theme: store.theme,
+    strictModeEnabled: store.strictModeEnabled,
+    hideSensitiveByDefault: store.hideSensitiveByDefault,
+    warnBeforeCopyHighRisk: store.warnBeforeCopyHighRisk,
+    clearClipboardAfterCopy: store.clearClipboardAfterCopy,
+    clipboardClearSeconds: store.clipboardClearSeconds,
+    autoBackupEnabled: store.autoBackupEnabled,
+    autoBackupTime: store.autoBackupTime,
+    backupPath: store.backupPath,
+    backupRetentionCount: store.backupRetentionCount,
+    defaultExportFormat: store.defaultExportFormat,
+    includeSensitiveInExportByDefault: store.includeSensitiveInExportByDefault,
+  });
 
-  const update = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    setSettings((s) => ({ ...s, [key]: value }));
+  const update = <K extends keyof typeof local>(key: K, value: (typeof local)[K]) => {
+    setLocal((s) => ({ ...s, [key]: value }));
     setDirty(true);
+    // Apply theme immediately for preview
+    if (key === 'theme') {
+      store.setTheme(value as 'light' | 'dark' | 'system');
+    }
   };
 
   const handleSave = () => {
-    // settingsService.updateAll(settings)
+    store.updateSettings(local);
     toast('success', '设置已保存');
     setDirty(false);
+  };
+
+  const handleChooseBackupDir = async () => {
+    try {
+      if (isTauri()) {
+        const { open } = await import('@tauri-apps/api/dialog');
+        const selected = await open({ directory: true, title: '选择备份目录' });
+        if (selected && typeof selected === 'string') {
+          update('backupPath', selected);
+        }
+      } else {
+        toast('info', '浏览器模式下无法选择目录');
+      }
+    } catch (e) {
+      toast('error', '选择目录失败');
+    }
+  };
+
+  const handleOpenDataDir = async () => {
+    try {
+      if (isTauri()) {
+        const { appDataDir } = await import('@tauri-apps/api/path');
+        const { open } = await import('@tauri-apps/api/shell');
+        const dir = await appDataDir();
+        await open(dir);
+        toast('success', '已打开数据目录');
+      } else {
+        toast('info', '浏览器模式下无法打开目录');
+      }
+    } catch {
+      toast('error', '打开目录失败');
+    }
   };
 
   const renderSection = () => {
@@ -76,7 +120,7 @@ export default function SettingsPage() {
           <div className="space-y-6">
             <div>
               <label className="label-base">默认启动页面</label>
-              <select className="input-field w-56" value={settings.defaultPage} onChange={(e) => update('defaultPage', e.target.value)}>
+              <select className="input-field w-56" value={local.defaultPage} onChange={(e) => update('defaultPage', e.target.value)}>
                 <option value="/records">全部记录</option>
                 <option value="/favorites">收藏</option>
                 <option value="/recent">最近使用</option>
@@ -86,7 +130,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <label className="label-base">默认排序</label>
-              <select className="input-field w-56" value={settings.defaultSort} onChange={(e) => update('defaultSort', e.target.value)}>
+              <select className="input-field w-56" value={local.defaultSort} onChange={(e) => update('defaultSort', e.target.value)}>
                 <option value="updatedAt_desc">更新时间（最新优先）</option>
                 <option value="updatedAt_asc">更新时间（最旧优先）</option>
                 <option value="title_asc">标题（A-Z）</option>
@@ -103,9 +147,9 @@ export default function SettingsPage() {
                     onClick={() => update('theme', val)}
                     className="px-4 py-2 rounded-[10px] text-[14px] border transition-all duration-[120ms]"
                     style={{
-                      border: `1px solid ${settings.theme === val ? '#10213B' : '#E8DFD4'}`,
-                      background: settings.theme === val ? '#F1E7DC' : '#FFFFFF',
-                      color: settings.theme === val ? '#10213B' : '#374151',
+                      border: `1px solid ${local.theme === val ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                      background: local.theme === val ? 'var(--color-bg-tag)' : 'var(--color-bg-input)',
+                      color: local.theme === val ? 'var(--color-text-heading)' : 'var(--color-text-secondary)',
                     }}
                   >
                     {lbl}
@@ -126,10 +170,10 @@ export default function SettingsPage() {
             ].map(({ key, label, desc }) => (
               <div key={key} className="flex items-center justify-between gap-4">
                 <div>
-                  <div className="text-[14px] font-medium" style={{ color: '#1F2937' }}>{label}</div>
-                  <div className="text-[13px] mt-0.5" style={{ color: '#9CA3AF' }}>{desc}</div>
+                  <div className="text-[14px] font-medium" style={{ color: 'var(--color-text-primary)' }}>{label}</div>
+                  <div className="text-[13px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>{desc}</div>
                 </div>
-                <Toggle checked={settings[key]} onChange={(v) => update(key, v)} />
+                <Toggle checked={local[key]} onChange={(v) => update(key, v)} />
               </div>
             ))}
           </div>
@@ -140,12 +184,12 @@ export default function SettingsPage() {
           <div className="space-y-5">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <div className="text-[14px] font-medium" style={{ color: '#1F2937' }}>复制后自动清除剪贴板</div>
-                <div className="text-[13px] mt-0.5" style={{ color: '#9CA3AF' }}>复制敏感信息后，自动清除剪贴板内容</div>
+                <div className="text-[14px] font-medium" style={{ color: 'var(--color-text-primary)' }}>复制后自动清除剪贴板</div>
+                <div className="text-[13px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>复制敏感信息后，自动清除剪贴板内容</div>
               </div>
-              <Toggle checked={settings.clearClipboardAfterCopy} onChange={(v) => update('clearClipboardAfterCopy', v)} />
+              <Toggle checked={local.clearClipboardAfterCopy} onChange={(v) => update('clearClipboardAfterCopy', v)} />
             </div>
-            {settings.clearClipboardAfterCopy && (
+            {local.clearClipboardAfterCopy && (
               <div>
                 <label className="label-base">自动清除延迟（秒）</label>
                 <input
@@ -153,11 +197,11 @@ export default function SettingsPage() {
                   className="input-field w-28"
                   min={5}
                   max={300}
-                  value={settings.clipboardClearSeconds}
+                  value={local.clipboardClearSeconds}
                   onChange={(e) => update('clipboardClearSeconds', parseInt(e.target.value) || 30)}
                 />
-                <p className="text-[13px] mt-1.5" style={{ color: '#9CA3AF' }}>
-                  复制敏感字段后，{settings.clipboardClearSeconds} 秒后自动清除剪贴板
+                <p className="text-[13px] mt-1.5" style={{ color: 'var(--color-text-muted)' }}>
+                  复制敏感字段后，{local.clipboardClearSeconds} 秒后自动清除剪贴板
                 </p>
               </div>
             )}
@@ -169,13 +213,28 @@ export default function SettingsPage() {
           <div className="space-y-5">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <div className="text-[14px] font-medium" style={{ color: '#1F2937' }}>自动备份</div>
-                <div className="text-[13px] mt-0.5" style={{ color: '#9CA3AF' }}>启动时自动创建数据备份</div>
+                <div className="text-[14px] font-medium" style={{ color: 'var(--color-text-primary)' }}>自动备份</div>
+                <div className="text-[13px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>按设定时间自动创建数据备份</div>
               </div>
-              <Toggle checked={settings.autoBackupEnabled} onChange={(v) => update('autoBackupEnabled', v)} />
+              <Toggle checked={local.autoBackupEnabled} onChange={(v) => update('autoBackupEnabled', v)} />
             </div>
-            {settings.autoBackupEnabled && (
+            {local.autoBackupEnabled && (
               <>
+                <div>
+                  <label className="label-base">自动备份时间</label>
+                  <select
+                    className="input-field w-48"
+                    value={local.autoBackupTime}
+                    onChange={(e) => update('autoBackupTime', e.target.value)}
+                  >
+                    {BACKUP_TIME_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <p className="text-[13px] mt-1.5" style={{ color: 'var(--color-text-muted)' }}>
+                    选择自动备份的执行时间
+                  </p>
+                </div>
                 <div>
                   <label className="label-base">备份保留数量</label>
                   <input
@@ -183,10 +242,10 @@ export default function SettingsPage() {
                     className="input-field w-28"
                     min={1}
                     max={100}
-                    value={settings.backupRetentionCount}
+                    value={local.backupRetentionCount}
                     onChange={(e) => update('backupRetentionCount', parseInt(e.target.value) || 10)}
                   />
-                  <p className="text-[13px] mt-1.5" style={{ color: '#9CA3AF' }}>超出数量的旧备份会自动删除</p>
+                  <p className="text-[13px] mt-1.5" style={{ color: 'var(--color-text-muted)' }}>超出数量的旧备份会自动删除</p>
                 </div>
                 <div>
                   <label className="label-base">备份路径</label>
@@ -194,11 +253,11 @@ export default function SettingsPage() {
                     <input
                       type="text"
                       className="input-field flex-1"
-                      value={settings.backupPath || ''}
+                      value={local.backupPath || ''}
                       readOnly
                       placeholder="使用默认路径"
                     />
-                    <button className="btn-secondary" onClick={() => { /* systemService.chooseDirectory() */ }}>
+                    <button className="btn-secondary" onClick={handleChooseBackupDir}>
                       选择目录
                     </button>
                   </div>
@@ -220,9 +279,9 @@ export default function SettingsPage() {
                     onClick={() => update('defaultExportFormat', fmt)}
                     className="px-4 py-2 rounded-[10px] text-[14px] border transition-all duration-[120ms]"
                     style={{
-                      border: `1px solid ${settings.defaultExportFormat === fmt ? '#10213B' : '#E8DFD4'}`,
-                      background: settings.defaultExportFormat === fmt ? '#F1E7DC' : '#FFFFFF',
-                      color: settings.defaultExportFormat === fmt ? '#10213B' : '#374151',
+                      border: `1px solid ${local.defaultExportFormat === fmt ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                      background: local.defaultExportFormat === fmt ? 'var(--color-bg-tag)' : 'var(--color-bg-input)',
+                      color: local.defaultExportFormat === fmt ? 'var(--color-text-heading)' : 'var(--color-text-secondary)',
                     }}
                   >
                     {fmt === 'excel' ? 'Excel (.xlsx)' : 'CSV (.csv)'}
@@ -232,10 +291,10 @@ export default function SettingsPage() {
             </div>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <div className="text-[14px] font-medium" style={{ color: '#1F2937' }}>默认包含敏感字段</div>
-                <div className="text-[13px] mt-0.5" style={{ color: '#9CA3AF' }}>导出时默认勾选"包含敏感字段"选项</div>
+                <div className="text-[14px] font-medium" style={{ color: 'var(--color-text-primary)' }}>默认包含敏感字段</div>
+                <div className="text-[13px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>导出时默认勾选"包含敏感字段"选项</div>
               </div>
-              <Toggle checked={settings.includeSensitiveInExportByDefault} onChange={(v) => update('includeSensitiveInExportByDefault', v)} />
+              <Toggle checked={local.includeSensitiveInExportByDefault} onChange={(v) => update('includeSensitiveInExportByDefault', v)} />
             </div>
           </div>
         );
@@ -244,14 +303,14 @@ export default function SettingsPage() {
         return (
           <div className="space-y-6">
             <div>
-              <div className="text-[14px] font-medium mb-1" style={{ color: '#1F2937' }}>重建搜索索引</div>
-              <p className="text-[13px] mb-3" style={{ color: '#9CA3AF' }}>如果搜索结果不准确，可以重建全文索引</p>
+              <div className="text-[14px] font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>重建搜索索引</div>
+              <p className="text-[13px] mb-3" style={{ color: 'var(--color-text-muted)' }}>如果搜索结果不准确，可以重建全文索引</p>
               <button className="btn-secondary" onClick={() => toast('success', '搜索索引重建完成')}>重建索引</button>
             </div>
-            <div style={{ borderTop: '1px solid #EFE8DF', paddingTop: '24px' }}>
-              <div className="text-[14px] font-medium mb-1" style={{ color: '#1F2937' }}>打开数据目录</div>
-              <p className="text-[13px] mb-3" style={{ color: '#9CA3AF' }}>在文件管理器中查看应用数据目录</p>
-              <button className="btn-secondary" onClick={() => toast('info', '已打开数据目录')}>打开目录</button>
+            <div style={{ borderTop: '1px solid var(--color-border-light)', paddingTop: '24px' }}>
+              <div className="text-[14px] font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>打开数据目录</div>
+              <p className="text-[13px] mb-3" style={{ color: 'var(--color-text-muted)' }}>在文件管理器中查看应用数据目录</p>
+              <button className="btn-secondary" onClick={handleOpenDataDir}>打开目录</button>
             </div>
           </div>
         );
@@ -262,7 +321,7 @@ export default function SettingsPage() {
             <div className="text-center py-8">
               <div
                 className="w-14 h-14 rounded-[14px] flex items-center justify-center mx-auto mb-4"
-                style={{ background: '#10213B' }}
+                style={{ background: 'var(--color-toggle-on)' }}
               >
                 <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                   <rect x="5" y="12" width="18" height="13" rx="2" stroke="white" strokeWidth="1.6"/>
@@ -270,17 +329,17 @@ export default function SettingsPage() {
                   <circle cx="14" cy="18" r="2" fill="white"/>
                 </svg>
               </div>
-              <h3 className="text-[18px] font-bold" style={{ color: '#162033' }}>账号仓</h3>
-              <p className="text-[13px] mt-1" style={{ color: '#9CA3AF' }}>Account Vault</p>
-              <p className="text-[12px] mt-2" style={{ color: '#C2BDB5' }}>版本 1.0.0</p>
-              <p className="text-[12px] mt-1" style={{ color: '#B6B0A8' }}>
+              <h3 className="text-[18px] font-bold" style={{ color: 'var(--color-text-heading)' }}>账号仓</h3>
+              <p className="text-[13px] mt-1" style={{ color: 'var(--color-text-muted)' }}>Account Vault</p>
+              <p className="text-[12px] mt-2" style={{ color: 'var(--color-text-faint)' }}>版本 1.0.0</p>
+              <p className="text-[12px] mt-1" style={{ color: 'var(--color-text-faint)' }}>
                 开发者 {PROTECTION_INFO.developerId}
               </p>
             </div>
-            <div className="text-center space-y-1.5" style={{ color: '#B6B0A8' }}>
+            <div className="text-center space-y-1.5" style={{ color: 'var(--color-text-faint)' }}>
               <p className="text-[13px]">本地安全的账号管理工具</p>
               <p className="text-[13px]">数据完全存储在本地，使用 AES-256-GCM 加密</p>
-              <p className="text-[13px] pt-2" style={{ color: '#C2BDB5' }}>基于 Tauri + React 构建</p>
+              <p className="text-[13px] pt-2" style={{ color: 'var(--color-text-muted)' }}>基于 Tauri + React 构建</p>
             </div>
           </div>
         );
@@ -288,11 +347,11 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex-1 flex overflow-hidden" style={{ background: '#FFFDFC' }}>
+    <div className="flex-1 flex overflow-hidden" style={{ background: 'var(--color-bg-page)' }}>
       {/* Section nav */}
       <div
         className="w-44 py-5 px-3 space-y-0.5 flex-shrink-0"
-        style={{ borderRight: '1px solid #EFE8DF', background: '#FAF7F1' }}
+        style={{ borderRight: '1px solid var(--color-border-light)', background: 'var(--color-bg-muted)' }}
       >
         {SECTIONS.map((s) => (
           <button
@@ -300,10 +359,10 @@ export default function SettingsPage() {
             onClick={() => setActiveSection(s.key)}
             className="w-full flex items-center px-3 py-2 rounded-[8px] text-[14px] transition-all duration-[120ms] text-left"
             style={{
-              background: activeSection === s.key ? '#F1E7DC' : 'transparent',
-              color: activeSection === s.key ? '#10213B' : '#6B7280',
+              background: activeSection === s.key ? 'var(--color-bg-tag)' : 'transparent',
+              color: activeSection === s.key ? 'var(--color-text-heading)' : 'var(--color-text-secondary)',
               fontWeight: activeSection === s.key ? 500 : 400,
-              borderLeft: activeSection === s.key ? '3px solid #10213B' : '3px solid transparent',
+              borderLeft: activeSection === s.key ? '3px solid var(--color-toggle-on)' : '3px solid transparent',
             }}
           >
             {s.label}
@@ -315,9 +374,9 @@ export default function SettingsPage() {
       <div className="flex-1 overflow-y-auto">
         <div
           className="px-10 pt-7 pb-5 flex items-center justify-between"
-          style={{ borderBottom: '1px solid #EFE8DF' }}
+          style={{ borderBottom: '1px solid var(--color-border-light)' }}
         >
-          <h2 className="text-[22px] font-semibold leading-[30px]" style={{ color: '#162033' }}>
+          <h2 className="text-[22px] font-semibold leading-[30px]" style={{ color: 'var(--color-text-heading)' }}>
             {SECTIONS.find((s) => s.key === activeSection)?.label}
           </h2>
           {dirty && activeSection !== 'data' && activeSection !== 'about' && (

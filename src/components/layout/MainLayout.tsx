@@ -185,11 +185,11 @@ export default function MainLayout() {
     location.pathname === path || (path === '/records' && location.pathname === '/');
 
   return (
-    <div className="flex h-full" style={{ background: '#F4F2EC' }}>
+    <div className="flex h-full" style={{ background: 'var(--color-bg-body)' }}>
       {/* ── Sidebar ── */}
       <aside
         className="flex flex-col select-none flex-shrink-0 h-full overflow-hidden"
-        style={{ width: '220px', background: '#F4F2EC', borderRight: '1px solid #E3DDD4' }}
+        style={{ width: '220px', background: 'var(--color-bg-sidebar)', borderRight: '1px solid var(--color-border)' }}
       >
         {/* Brand + New button */}
         <div style={{ padding: '18px 14px 14px' }}>
@@ -200,7 +200,7 @@ export default function MainLayout() {
             >
               <Icons.Logo />
             </div>
-            <span style={{ fontSize: '15px', fontWeight: 700, color: '#1C1917', letterSpacing: '-0.2px' }}>
+            <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)', letterSpacing: '-0.2px' }}>
               账号仓
             </span>
           </div>
@@ -218,7 +218,7 @@ export default function MainLayout() {
         </div>
 
         {/* Main nav */}
-        <div style={{ padding: '2px 8px 10px', borderBottom: '1px solid #E3DDD4' }}>
+        <div style={{ padding: '2px 8px 10px', borderBottom: '1px solid var(--color-border)' }}>
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.path);
             return (
@@ -228,7 +228,7 @@ export default function MainLayout() {
                 className={clsx('sidebar-nav-item', active && 'active')}
                 style={{ marginBottom: '1px' }}
               >
-                <span style={{ color: active ? '#EA580C' : '#A8A09A' }}>
+                <span style={{ color: active ? 'var(--color-nav-active)' : 'var(--color-text-faint)' }}>
                   <item.Icon />
                 </span>
                 <span className="flex-1 text-left">{item.label}</span>
@@ -270,7 +270,7 @@ export default function MainLayout() {
                 className="w-full flex items-center gap-2 transition-all duration-[120ms]"
                 style={{
                   height: '34px', padding: '0 9px', borderRadius: '7px',
-                  background: active ? '#FFF2EA' : 'transparent',
+                  background: active ? 'var(--color-bg-sidebar-active)' : 'transparent',
                   marginBottom: '1px',
                 }}
               >
@@ -285,14 +285,15 @@ export default function MainLayout() {
                   className="flex-1 text-left truncate"
                   style={{
                     fontSize: '13px', fontWeight: active ? 500 : 400,
-                    color: active ? '#EA580C' : '#78716C',
+                    color: active ? 'var(--color-nav-active)' : 'var(--color-text-secondary)',
                   }}
                 >
                   {folder.name}
                 </span>
                 <span style={{
                   fontSize: '11px',
-                  color: active ? 'rgba(234, 88, 12, 0.5)' : '#B8B0A6',
+                  color: active ? 'var(--color-nav-active)' : 'var(--color-text-faint)',
+                  opacity: active ? 0.5 : 1,
                 }}>
                   {folder.recordCount}
                 </span>
@@ -334,7 +335,7 @@ export default function MainLayout() {
         </div>
 
         {/* Bottom nav */}
-        <div style={{ padding: '8px', borderTop: '1px solid #E3DDD4' }}>
+        <div style={{ padding: '8px', borderTop: '1px solid var(--color-border)' }}>
           {[
             { path: '/stats', label: '统计', Icon: Icons.BarChart },
             { path: '/backup', label: '备份导出', Icon: Icons.Archive },
@@ -349,10 +350,10 @@ export default function MainLayout() {
                 className={clsx('sidebar-nav-item', active && 'active')}
                 style={{ marginBottom: '1px', height: '34px' }}
               >
-                <span style={{ color: active ? '#EA580C' : '#B8B0A6' }}>
+                <span style={{ color: active ? 'var(--color-nav-active)' : 'var(--color-text-faint)' }}>
                   <item.Icon />
                 </span>
-                <span className="flex-1 text-left" style={{ fontSize: '13px', color: active ? '#EA580C' : '#A8A09A' }}>
+                <span className="flex-1 text-left" style={{ fontSize: '13px', color: active ? 'var(--color-nav-active)' : 'var(--color-text-faint)' }}>
                   {item.label}
                 </span>
               </button>
@@ -363,10 +364,10 @@ export default function MainLayout() {
             style={{
               margin: '8px 8px 0',
               paddingTop: '8px',
-              borderTop: '1px solid rgba(227, 221, 212, 0.65)',
+              borderTop: '1px solid var(--color-border)',
               fontSize: '10px',
               lineHeight: '16px',
-              color: '#B8B0A6',
+              color: 'var(--color-text-faint)',
               letterSpacing: '0.2px',
             }}
           >
@@ -376,7 +377,7 @@ export default function MainLayout() {
       </aside>
 
       {/* ── Main content ── */}
-      <main className="flex-1 overflow-hidden flex flex-col" style={{ background: '#FFFFFF' }}>
+      <main className="flex-1 overflow-hidden flex flex-col" style={{ background: 'var(--color-bg-page)' }}>
         <Outlet />
       </main>
 

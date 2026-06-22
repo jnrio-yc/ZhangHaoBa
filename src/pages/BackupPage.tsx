@@ -115,16 +115,16 @@ export default function BackupPage() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto" style={{ background: '#FFFDFC' }}>
-      <div className="px-12 pt-7 pb-5" style={{ borderBottom: '1px solid #EFE8DF' }}>
-        <h1 className="text-[22px] font-semibold leading-[30px]" style={{ color: '#162033' }}>备份与导出</h1>
+    <div className="flex-1 overflow-y-auto" style={{ background: 'var(--color-bg-page)' }}>
+      <div className="px-12 pt-7 pb-5" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+        <h1 className="text-[22px] font-semibold leading-[30px]" style={{ color: 'var(--color-text-heading)' }}>备份与导出</h1>
       </div>
 
       <div className="px-12 py-6 space-y-5 max-w-[680px]">
         {/* Backup section */}
         <div className="vault-card p-6">
-          <h3 className="text-[16px] font-semibold mb-1.5" style={{ color: '#1F2937' }}>备份</h3>
-          <p className="text-[14px] leading-[22px] mb-5" style={{ color: '#9CA3AF' }}>
+          <h3 className="text-[16px] font-semibold mb-1.5" style={{ color: 'var(--color-text-primary)' }}>备份</h3>
+          <p className="text-[14px] leading-[22px] mb-5" style={{ color: 'var(--color-text-muted)' }}>
             创建加密备份文件到本地，包含所有记录和设置。可在其它机器或重装后恢复。
           </p>
           <div className="flex gap-3 mb-6">
@@ -156,7 +156,7 @@ export default function BackupPage() {
                   >
                     <div className="flex-1 min-w-0">
                       <div className="text-[14px]" style={{ color: '#374151' }}>{formatDate(b.createdAt)}</div>
-                      <div className="text-[12px] mt-0.5 truncate" style={{ color: '#9CA3AF' }} title={b.filePath}>
+                      <div className="text-[12px] mt-0.5 truncate" style={{ color: 'var(--color-text-muted)' }} title={b.filePath}>
                         {b.fileSize ? formatFileSize(b.fileSize) : '-'} · {b.filePath}
                       </div>
                     </div>
@@ -182,8 +182,8 @@ export default function BackupPage() {
 
         {/* Export section */}
         <div className="vault-card p-6">
-          <h3 className="text-[16px] font-semibold mb-1.5" style={{ color: '#1F2937' }}>导出</h3>
-          <p className="text-[14px] leading-[22px] mb-5" style={{ color: '#9CA3AF' }}>
+          <h3 className="text-[16px] font-semibold mb-1.5" style={{ color: 'var(--color-text-primary)' }}>导出</h3>
+          <p className="text-[14px] leading-[22px] mb-5" style={{ color: 'var(--color-text-muted)' }}>
             将记录导出为 Excel 或 CSV 文件到本地路径。
           </p>
 
