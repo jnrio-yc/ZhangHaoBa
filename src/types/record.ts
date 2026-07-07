@@ -87,6 +87,7 @@ export interface ApiKeyGroupView {
   id: string;
   groupName?: string;
   apiKeyMasked?: string;
+  apiKey?: string;
   balance?: string;
   models: string[];
   sortOrder: number;
@@ -106,6 +107,9 @@ export interface RecordDetail {
   passwordMasked?: string;
   apiKeyMasked?: string;
   licenseKeyMasked?: string;
+  apiKey?: string;
+  password?: string;
+  licenseKey?: string;
   note?: string;
   expireAt?: string;
   priceInfo?: string;

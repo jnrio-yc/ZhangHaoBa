@@ -60,9 +60,9 @@
     --color-text-primary: #E5E5E5;
     --color-text-heading: #F0F0F0;
     --color-text-secondary: #A0A0A0;
-    --color-text-muted: #707070;
-    --color-text-faint: #555555;
-    --color-text-placeholder: #505050;
+    --color-text-muted: #969696;
+    --color-text-faint: #7C7C7C;
+    --color-text-placeholder: #6E6E6E;
     --color-border: #333333;
     --color-border-light: #2A2A2A;
     --color-accent: #EA580C;
@@ -909,4 +909,124 @@
       transform: none;
     }
   }
+}
+
+/* ============================================================
+   Dark-mode override for inline-styled surfaces
+   页面里大量内联 style 用硬编码浅色 hex（内联优先级高于样式表）。
+   下面这些 [data-theme="dark"] 作用域的 !important 规则，在深色模式
+   下把这些浅色映射到 dark 变量，让整个应用统一变深（亮色不受影响）。
+   未列出的彩色（橙/蓝/绿等强调色）保持不变。
+   ============================================================ */
+
+/* 白色卡片 / 页面底 → 深色卡片（#FFFFFF 被规范化成 rgb；white 关键字保留） */
+[data-theme="dark"] [style*="background: rgb(255, 255, 255)"],
+[data-theme="dark"] [style*="background-color: rgb(255, 255, 255)"],
+[data-theme="dark"] [style*="background: white"],
+[data-theme="dark"] [style*="background:white"],
+[data-theme="dark"] [style*="background-color: white"],
+[data-theme="dark"] [style*="background: rgb(255, 253, 252)"],
+[data-theme="dark"] [style*="background-color: rgb(255, 253, 252)"] {
+  background: var(--color-bg-card) !important;
+  background-color: var(--color-bg-card) !important;
+}
+
+/* 暖白 / 米色 / 中性奶白（卡片选中态、hover、面板）→ 深色 muted */
+[data-theme="dark"] [style*="background: rgb(250, 250, 247)"],
+[data-theme="dark"] [style*="background-color: rgb(250, 250, 247)"],
+[data-theme="dark"] [style*="background: rgb(250, 247, 241)"],
+[data-theme="dark"] [style*="background: rgb(249, 248, 244)"],
+[data-theme="dark"] [style*="background: rgb(244, 242, 236)"],
+[data-theme="dark"] [style*="background: rgb(255, 252, 247)"],
+[data-theme="dark"] [style*="background: rgb(250, 250, 248)"],
+[data-theme="dark"] [style*="background: rgb(241, 231, 220)"],
+[data-theme="dark"] [style*="background: rgb(244, 239, 232)"],
+[data-theme="dark"] [style*="background: rgb(255, 248, 243)"],
+[data-theme="dark"] [style*="background: rgb(255, 251, 240)"],
+[data-theme="dark"] [style*="background: rgb(255, 251, 235)"],
+[data-theme="dark"] [style*="background: rgb(255, 248, 231)"],
+[data-theme="dark"] [style*="background: rgb(255, 244, 223)"],
+[data-theme="dark"] [style*="background: rgb(255, 242, 234)"],
+[data-theme="dark"] [style*="background: rgb(255, 241, 231)"] {
+  background: var(--color-bg-muted) !important;
+  background-color: var(--color-bg-muted) !important;
+}
+
+/* 标题深色文字 → 浅色 */
+[data-theme="dark"] [style*="color: rgb(28, 25, 23)"],
+[data-theme="dark"] [style*="color: rgb(22, 32, 51)"],
+[data-theme="dark"] [style*="color: rgb(31, 41, 55)"] {
+  color: var(--color-text-heading) !important;
+}
+
+/* 正文深灰 → 浅色 primary */
+[data-theme="dark"] [style*="color: rgb(55, 65, 81)"],
+[data-theme="dark"] [style*="color: rgb(68, 64, 60)"],
+[data-theme="dark"] [style*="color: rgb(87, 83, 78)"] {
+  color: var(--color-text-primary) !important;
+}
+
+/* 次要灰 → secondary */
+[data-theme="dark"] [style*="color: rgb(107, 114, 128)"],
+[data-theme="dark"] [style*="color: rgb(120, 113, 108)"],
+[data-theme="dark"] [style*="color: rgb(138, 143, 152)"] {
+  color: var(--color-text-secondary) !important;
+}
+
+/* 浅灰 / 占位 → muted */
+[data-theme="dark"] [style*="color: rgb(156, 163, 175)"],
+[data-theme="dark"] [style*="color: rgb(168, 160, 154)"],
+[data-theme="dark"] [style*="color: rgb(184, 176, 166)"],
+[data-theme="dark"] [style*="color: rgb(192, 184, 176)"],
+[data-theme="dark"] [style*="color: rgb(208, 200, 192)"] {
+  color: var(--color-text-muted) !important;
+}
+
+/* 浅色边框 → 深色边框（这些灰只用于边框） */
+[data-theme="dark"] [style*="rgb(232, 227, 220)"],
+[data-theme="dark"] [style*="rgb(239, 232, 223)"],
+[data-theme="dark"] [style*="rgb(232, 223, 212)"],
+[data-theme="dark"] [style*="rgb(227, 221, 212)"],
+[data-theme="dark"] [style*="rgb(213, 207, 197)"],
+[data-theme="dark"] [style*="rgb(244, 239, 232)"] {
+  border-color: var(--color-border) !important;
+}
+
+/* ===== 深色模式：覆盖 globals.css 里“用类”设定的浅色背景 ===== */
+/* 容器/卡片类 → 深色卡片 */
+[data-theme="dark"] .record-card-action,
+[data-theme="dark"] .platform-preset-panel,
+[data-theme="dark"] .vault-select-menu,
+[data-theme="dark"] .vault-select-trigger,
+[data-theme="dark"] .record-view-switch,
+[data-theme="dark"] .record-favorite-button {
+  background: var(--color-bg-card) !important;
+}
+
+/* hover 态 → 深色 hover */
+[data-theme="dark"] .record-card-action:hover,
+[data-theme="dark"] .platform-preset-option:hover,
+[data-theme="dark"] .vault-select-option:hover,
+[data-theme="dark"] .vault-select-trigger:hover,
+[data-theme="dark"] .record-view-switch button:hover {
+  background: var(--color-bg-hover) !important;
+  color: var(--color-text-primary) !important;
+}
+
+/* 选中/激活态 → 深色 active */
+[data-theme="dark"] .vault-select-option.is-selected,
+[data-theme="dark"] .record-view-switch button.active {
+  background: var(--color-bg-sidebar-active) !important;
+  color: var(--color-nav-active) !important;
+}
+
+[data-theme="dark"] .record-favorite-button[data-active="true"],
+[data-theme="dark"] .record-favorite-button:hover {
+  background: var(--color-bg-muted) !important;
+  border-color: var(--color-border) !important;
+}
+
+[data-theme="dark"] .record-card-action-danger:hover {
+  background: var(--color-danger-bg) !important;
+  border-color: var(--color-danger-border) !important;
 }

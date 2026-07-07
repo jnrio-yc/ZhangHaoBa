@@ -52,6 +52,9 @@ pub struct RecordDetail {
     pub password_masked: Option<String>,
     pub api_key_masked: Option<String>,
     pub license_key_masked: Option<String>,
+    pub api_key: Option<String>,
+    pub password: Option<String>,
+    pub license_key: Option<String>,
     pub note: Option<String>,
     pub expire_at: Option<String>,
     pub price_info: Option<String>,
@@ -79,6 +82,7 @@ pub struct ApiKeyGroupItem {
     pub id: String,
     pub group_name: Option<String>,
     pub api_key_masked: Option<String>,
+    pub api_key: Option<String>,
     pub balance: Option<String>,
     pub models: Vec<String>,
     pub sort_order: i32,
@@ -379,6 +383,10 @@ pub fn record_get_detail(state: State<AppState>, id: String) -> Result<ApiRespon
                 Crypto::decrypt(enc).ok().map(|plain| Crypto::mask_value(&plain, 0, 4))
             });
 
+            let password = password_encrypted.as_ref().and_then(|enc| Crypto::decrypt(enc).ok());
+            let api_key = api_key_encrypted.as_ref().and_then(|enc| Crypto::decrypt(enc).ok());
+            let license_key = license_key_encrypted.as_ref().and_then(|enc| Crypto::decrypt(enc).ok());
+
             Ok(RecordDetail {
                 id: row.get(0)?,
                 title: row.get(1)?,
@@ -391,6 +399,9 @@ pub fn record_get_detail(state: State<AppState>, id: String) -> Result<ApiRespon
                 password_masked,
                 api_key_masked,
                 license_key_masked,
+                api_key,
+                password,
+                license_key,
                 note: row.get(11)?,
                 expire_at: row.get(12)?,
                 price_info: row.get(13)?,
@@ -716,6 +727,9 @@ fn load_api_key_groups(conn: &Connection, record_id: &str) -> Result<Vec<ApiKeyG
             .as_ref()
             .and_then(|value| Crypto::decrypt(value).ok())
             .map(|value| Crypto::mask_value(&value, 4, 4));
+        let api_key = api_key_encrypted
+            .as_ref()
+            .and_then(|value| Crypto::decrypt(value).ok());
         let models_json: Option<String> = row.get(4)?;
         let models = models_json
             .as_deref()
@@ -726,6 +740,7 @@ fn load_api_key_groups(conn: &Connection, record_id: &str) -> Result<Vec<ApiKeyG
             id: row.get(0)?,
             group_name: row.get(1)?,
             api_key_masked,
+            api_key,
             balance: row.get(3)?,
             models,
             sort_order: row.get(5)?,

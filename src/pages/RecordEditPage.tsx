@@ -336,6 +336,9 @@ export default function RecordEditPage({
           setUrl(d.url || '');
           setBaseUrl(d.baseUrl || '');
           setUsername(d.username || '');
+          setPassword(d.password || '');
+          setApiKey(d.apiKey || '');
+          setLicenseKey(d.licenseKey || '');
           setCurrentApiKeyMasked(d.apiKeyMasked || '');
           setPlatformName(d.platformName || '');
           setProjectName(d.projectName || '');
@@ -360,7 +363,7 @@ export default function RecordEditPage({
               setApiKeyGroups(d.apiKeyGroups.map((group) => ({
                 id: group.id,
                 groupName: group.groupName || '',
-                apiKey: '',
+                apiKey: group.apiKey || '',
                 apiKeyMasked: group.apiKeyMasked,
                 balance: group.balance || '',
                 models: mapGroupModels(group.models),
@@ -368,7 +371,7 @@ export default function RecordEditPage({
             } else {
               setApiKeyGroups([{
                 groupName: '',
-                apiKey: '',
+                apiKey: d.apiKey || '',
                 apiKeyMasked: d.apiKeyMasked,
                 balance: d.priceInfo || '',
                 models: d.models.map((m) => ({
