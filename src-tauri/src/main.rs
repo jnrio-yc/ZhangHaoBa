@@ -7,10 +7,90 @@ mod error;
 
 use db::Database;
 use std::sync::Mutex;
+use tauri::Manager;
 
 pub struct AppState {
     pub db: Mutex<Database>,
 }
+
+// ── Window state persistence ──────────────────────────────────────────
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct WindowState {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+    maximized: bool,
+}
+
+fn state_path(app: &tauri::AppHandle) -> std::path::PathBuf {
+    app.path_resolver()
+        .app_data_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("window-state.json")
+}
+
+/// Restore saved window position/size/maximized state.
+/// Returns true if state was restored, false if first launch or invalid.
+fn restore_window_state(window: &tauri::Window) -> bool {
+    let path = state_path(&window.app_handle());
+    let data = match std::fs::read_to_string(&path) {
+        Ok(d) => d,
+        Err(_) => return false,
+    };
+    let state: WindowState = match serde_json::from_str(&data) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+
+    // Verify saved position is on a connected monitor
+    let monitors = window.available_monitors().unwrap_or_default();
+    let visible = monitors.iter().any(|m| {
+        let mp = m.position();
+        let ms = m.size();
+        state.x >= mp.x
+            && state.x < mp.x + ms.width as i32
+            && state.y >= mp.y
+            && state.y < mp.y + ms.height as i32
+    });
+    if !visible {
+        return false;
+    }
+
+    // Position window (targets the correct monitor)
+    let _ = window.set_position(tauri::PhysicalPosition::new(state.x, state.y));
+
+    if state.maximized {
+        let _ = window.maximize();
+    } else {
+        let _ = window.set_size(tauri::PhysicalSize::new(state.width, state.height));
+    }
+    true
+}
+
+/// Save current window position/size/maximized state to disk.
+fn save_window_state(window: &tauri::Window) {
+    let maximized = window.is_maximized().unwrap_or(false);
+    let (pos, size) = match (window.outer_position(), window.outer_size()) {
+        (Ok(p), Ok(s)) => (p, s),
+        _ => return,
+    };
+
+    let state = WindowState {
+        x: pos.x,
+        y: pos.y,
+        width: size.width,
+        height: size.height,
+        maximized,
+    };
+
+    if let Ok(json) = serde_json::to_string_pretty(&state) {
+        let _ = std::fs::write(state_path(&window.app_handle()), json);
+    }
+}
+
+// ── Main ──────────────────────────────────────────────────────────────
 
 fn main() {
     let db = Database::new().expect("Failed to initialize database");
@@ -18,6 +98,23 @@ fn main() {
     tauri::Builder::default()
         .manage(AppState {
             db: Mutex::new(db),
+        })
+        .setup(|app| {
+            if let Some(window) = app.get_window("main") {
+                if !restore_window_state(&window) {
+                    // First launch: center and maximize
+                    let _ = window.center();
+                    let _ = window.maximize();
+                }
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+            Ok(())
+        })
+        .on_window_event(|event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event.event() {
+                save_window_state(event.window());
+            }
         })
         .invoke_handler(tauri::generate_handler![
             commands::app::app_init,

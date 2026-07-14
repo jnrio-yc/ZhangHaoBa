@@ -1,6 +1,6 @@
 [package]
 name = "account-vault"
-version = "1.0.1"
+version = "1.0.3"
 description = "账号仓 - 本地账号管理工具"
 authors = ["寂镜jnrio"]
 license = "Proprietary"

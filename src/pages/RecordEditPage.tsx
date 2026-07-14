@@ -321,6 +321,25 @@ export default function RecordEditPage({
   );
 
   useEffect(() => {
+    if (!isTauri()) return;
+    let cancelled = false;
+    (async () => {
+      const listRes = await tagService.list();
+      if (!cancelled && listRes.success && listRes.data) {
+        const nextTags = listRes.data.map((tag) => ({
+          ...tag,
+          usageCount: (tag as any).usageCount ?? (tag as any).recordCount ?? 0,
+        }));
+        setTags(nextTags);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     if (!isEdit || !id) return;
     let cancelled = false;
     (async () => {
@@ -461,6 +480,25 @@ export default function RecordEditPage({
       setSelectedTagIds((prev) => [...prev, createdTagId]);
       setCustomTagName('');
     } catch {
+      // Local tag cache may be stale (e.g. tag was created elsewhere without
+      // this view refreshing yet). Re-fetch and select the tag if it already
+      // exists instead of surfacing a confusing "creation failed" error.
+      const listRes = await tagService.list();
+      if (listRes.success && listRes.data) {
+        const nextTags = listRes.data.map((tag) => ({
+          ...tag,
+          usageCount: (tag as any).usageCount ?? (tag as any).recordCount ?? 0,
+        }));
+        setTags(nextTags);
+        const matched = nextTags.find(
+          (tag) => normalizeTagName(tag.name) === normalizeTagName(name) && tag.groupKey === template.groupKey
+        );
+        if (matched) {
+          setSelectedTagIds((prev) => (prev.includes(matched.id) ? prev : [...prev, matched.id]));
+          setCustomTagName('');
+          return;
+        }
+      }
       toast('error', '标签创建失败');
     } finally {
       setCreatingTag(false);
