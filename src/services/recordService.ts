@@ -8,6 +8,7 @@ import type {
   RecordType,
 } from '@/types/record';
 import { isTauri, MOCK_RECORDS, MOCK_RECORD_DETAIL } from './mockData';
+import { triggerSyncInBackground } from './syncRunner';
 
 async function tauriInvoke<T>(cmd: string, args?: any): Promise<T> {
   const { invoke } = await import('@tauri-apps/api/tauri');
@@ -152,6 +153,7 @@ export const recordService = {
     if (!response.success || !response.data) {
       return response as unknown as ApiResponse<{ id: string }>;
     }
+    triggerSyncInBackground();
     return { ...response, data: { id: response.data } };
   },
 
@@ -166,12 +168,16 @@ export const recordService = {
       apiKeyUpdate: undefined,
       licenseKeyUpdate: undefined,
     };
-    return tauriInvoke('record_update', { params });
+    const response = await tauriInvoke<ApiResponse<void>>('record_update', { params });
+    if (response.success) triggerSyncInBackground();
+    return response;
   },
 
   async delete(id: string): Promise<ApiResponse<{ id: string; deletedAt: string }>> {
     if (!isTauri()) return ok({ id, deletedAt: new Date().toISOString() });
-    return tauriInvoke('record_delete', { id });
+    const response = await tauriInvoke<ApiResponse<{ id: string; deletedAt: string }>>('record_delete', { id });
+    if (response.success) triggerSyncInBackground();
+    return response;
   },
 
   async restore(payload: { id: string; targetFolderId?: string }): Promise<ApiResponse<void>> {

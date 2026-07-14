@@ -2,10 +2,13 @@ import { useState, useEffect } from 'react';
 import { clsx } from 'clsx';
 import { useToast } from '@/components/common/Toast';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useSyncStore } from '@/stores/syncStore';
+import { syncService } from '@/services/syncService';
+import { triggerSync } from '@/services/syncRunner';
 import { PROTECTION_INFO } from '@/constants/protection';
 import { isTauri } from '@/services/mockData';
 
-type SectionKey = 'general' | 'security' | 'clipboard' | 'backup' | 'export' | 'data' | 'about';
+type SectionKey = 'general' | 'security' | 'clipboard' | 'backup' | 'export' | 'sync' | 'data' | 'about';
 
 const SECTIONS: { key: SectionKey; label: string }[] = [
   { key: 'general', label: '通用' },
@@ -13,6 +16,7 @@ const SECTIONS: { key: SectionKey; label: string }[] = [
   { key: 'clipboard', label: '剪贴板' },
   { key: 'backup', label: '备份' },
   { key: 'export', label: '导出' },
+  { key: 'sync', label: '云同步' },
   { key: 'data', label: '数据' },
   { key: 'about', label: '关于' },
 ];
@@ -299,6 +303,9 @@ export default function SettingsPage() {
           </div>
         );
 
+      case 'sync':
+        return <SyncSection />;
+
       case 'data':
         return (
           <div className="space-y-6">
@@ -331,7 +338,7 @@ export default function SettingsPage() {
               </div>
               <h3 className="text-[18px] font-bold" style={{ color: 'var(--color-text-heading)' }}>账号仓</h3>
               <p className="text-[13px] mt-1" style={{ color: 'var(--color-text-muted)' }}>Account Vault</p>
-              <p className="text-[12px] mt-2" style={{ color: 'var(--color-text-faint)' }}>版本 1.0.0</p>
+              <p className="text-[12px] mt-2" style={{ color: 'var(--color-text-faint)' }}>版本 1.1.0</p>
               <p className="text-[12px] mt-1" style={{ color: 'var(--color-text-faint)' }}>
                 开发者 {PROTECTION_INFO.developerId}
               </p>
@@ -379,7 +386,7 @@ export default function SettingsPage() {
           <h2 className="text-[22px] font-semibold leading-[30px]" style={{ color: 'var(--color-text-heading)' }}>
             {SECTIONS.find((s) => s.key === activeSection)?.label}
           </h2>
-          {dirty && activeSection !== 'data' && activeSection !== 'about' && (
+          {dirty && activeSection !== 'data' && activeSection !== 'about' && activeSection !== 'sync' && (
             <button className="btn-primary" onClick={handleSave}>保存设置</button>
           )}
         </div>
@@ -389,6 +396,174 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function formatSyncTime(iso: string | null): string {
+  if (!iso) return '从未同步';
+  try {
+    return new Date(iso).toLocaleString('zh-CN');
+  } catch {
+    return iso;
+  }
+}
+
+function SyncSection() {
+  const { toast } = useToast();
+  const sync = useSyncStore();
+  const [supabaseUrl, setSupabaseUrl] = useState('');
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [configSaved, setConfigSaved] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    void (async () => {
+      const res = await syncService.getConfig();
+      const config = res.data;
+      if (config?.supabaseUrl) setSupabaseUrl(config.supabaseUrl);
+      if (config?.supabaseAnonKey) setSupabaseAnonKey(config.supabaseAnonKey);
+      setConfigSaved(!!(config?.supabaseUrl && config?.supabaseAnonKey));
+      sync.setSignedIn(config?.isSignedIn ? config.userEmail || '' : null);
+      sync.setLastSyncedAt(config?.lastSyncedAt || null);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!isTauri()) {
+    return <p className="text-[13px]" style={{ color: 'var(--color-text-muted)' }}>浏览器预览模式下无法使用云同步。</p>;
+  }
+
+  const handleSaveConfig = async () => {
+    if (!supabaseUrl.trim() || !supabaseAnonKey.trim()) {
+      toast('warning', '请填写 Supabase 项目地址和 anon key');
+      return;
+    }
+    setBusy(true);
+    try {
+      await syncService.setConfig(supabaseUrl.trim(), supabaseAnonKey.trim());
+      setConfigSaved(true);
+      toast('success', 'Supabase 配置已保存');
+    } catch {
+      toast('error', '保存配置失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSignIn = async () => {
+    if (!email.trim() || !password) {
+      toast('warning', '请输入邮箱和密码');
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await syncService.signIn(supabaseUrl.trim(), supabaseAnonKey.trim(), email.trim(), password);
+      sync.setSignedIn(result.email);
+      setPassword('');
+      toast('success', '登录成功');
+      void triggerSync();
+    } catch (e: any) {
+      toast('error', e?.message || '登录失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setBusy(true);
+    try {
+      await syncService.clearSession();
+      sync.setSignedIn(null);
+      toast('success', '已退出登录');
+    } catch {
+      toast('error', '退出登录失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    await triggerSync();
+    if (useSyncStore.getState().lastSyncError) {
+      toast('error', useSyncStore.getState().lastSyncError || '同步失败');
+    } else {
+      toast('success', '同步完成');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="text-[14px] font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>Supabase 项目配置</div>
+        <p className="text-[13px] mb-3" style={{ color: 'var(--color-text-muted)' }}>
+          在 Supabase 控制台创建项目并按文档建表后，把项目 URL 和 anon key 填在这里。
+        </p>
+        <div className="space-y-2">
+          <input
+            type="text"
+            className="input-field w-full"
+            placeholder="https://xxxx.supabase.co"
+            value={supabaseUrl}
+            onChange={(e) => setSupabaseUrl(e.target.value)}
+          />
+          <input
+            type="text"
+            className="input-field w-full"
+            placeholder="anon key"
+            value={supabaseAnonKey}
+            onChange={(e) => setSupabaseAnonKey(e.target.value)}
+          />
+          <button className="btn-secondary" disabled={busy} onClick={handleSaveConfig}>保存配置</button>
+        </div>
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--color-border-light)', paddingTop: '24px' }}>
+        <div className="text-[14px] font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>账号</div>
+        {sync.isSignedIn ? (
+          <div className="space-y-3">
+            <p className="text-[13px]" style={{ color: 'var(--color-text-muted)' }}>已登录：{sync.userEmail}</p>
+            <button className="btn-secondary" disabled={busy} onClick={handleSignOut}>退出登录</button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <input
+              type="email"
+              className="input-field w-full"
+              placeholder="邮箱"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <input
+              type="password"
+              className="input-field w-full"
+              placeholder="密码"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button className="btn-primary" disabled={busy || !configSaved} onClick={handleSignIn}>登录</button>
+            {!configSaved && (
+              <p className="text-[13px]" style={{ color: 'var(--color-text-muted)' }}>请先保存 Supabase 配置</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {sync.isSignedIn && (
+        <div style={{ borderTop: '1px solid var(--color-border-light)', paddingTop: '24px' }}>
+          <div className="text-[14px] font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>同步状态</div>
+          <p className="text-[13px] mb-3" style={{ color: 'var(--color-text-muted)' }}>
+            上次同步：{formatSyncTime(sync.lastSyncedAt)}
+            {sync.lastSyncError && <span style={{ color: 'var(--color-danger, #DC2626)' }}> · 上次同步失败：{sync.lastSyncError}</span>}
+          </p>
+          <button className="btn-primary" disabled={sync.isSyncing} onClick={handleSyncNow}>
+            {sync.isSyncing ? '同步中…' : '立即同步'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

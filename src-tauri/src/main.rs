@@ -173,6 +173,14 @@ fn main() {
             commands::system::system_open_data_dir,
             commands::system::system_choose_file,
             commands::system::system_choose_directory,
+            commands::sync::sync_get_local_changes,
+            commands::sync::sync_apply_remote_changes,
+            commands::sync::sync_get_config,
+            commands::sync::sync_set_config,
+            commands::sync::sync_save_session,
+            commands::sync::sync_load_session,
+            commands::sync::sync_clear_session,
+            commands::sync::sync_set_watermark,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

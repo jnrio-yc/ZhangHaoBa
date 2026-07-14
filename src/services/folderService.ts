@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/tauri';
 import type { ApiResponse } from '@/types/api';
 import type { FolderTreeItem, FolderCreateRequest, FolderUpdateRequest, FolderDeleteRequest } from '@/types/folder';
+import { triggerSyncInBackground } from './syncRunner';
 
 interface RawFolderItem {
   id: string;
@@ -77,13 +78,19 @@ export const folderService = {
     }
     return { ...response, data: normalizeFolderTree(response.data) };
   },
-  create(payload: FolderCreateRequest) {
-    return invoke<ApiResponse<string>>('folder_create', { params: payload });
+  async create(payload: FolderCreateRequest) {
+    const response = await invoke<ApiResponse<string>>('folder_create', { params: payload });
+    if (response.success) triggerSyncInBackground();
+    return response;
   },
-  update(payload: FolderUpdateRequest) {
-    return invoke<ApiResponse<boolean>>('folder_update', { params: payload });
+  async update(payload: FolderUpdateRequest) {
+    const response = await invoke<ApiResponse<boolean>>('folder_update', { params: payload });
+    if (response.success) triggerSyncInBackground();
+    return response;
   },
-  delete(payload: FolderDeleteRequest) {
-    return invoke<ApiResponse<boolean>>('folder_delete', { id: payload.id });
+  async delete(payload: FolderDeleteRequest) {
+    const response = await invoke<ApiResponse<boolean>>('folder_delete', { id: payload.id });
+    if (response.success) triggerSyncInBackground();
+    return response;
   },
 };

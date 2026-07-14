@@ -13,3 +13,4 @@ pub mod stats;
 pub mod health;
 pub mod trash;
 pub mod system;
+pub mod sync;
